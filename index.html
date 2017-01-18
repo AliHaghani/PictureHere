@@ -71,20 +71,18 @@
 <div><img id="map" src="http://maps.googleapis.com/maps/api/staticmap?center=San+Francisco,CA&zoom=13&size=600x80&maptype=roadmap&sensor=false"></div>
 
 <!-- Input Chat Box -->
-<input id="input" placeholder="Chat here">
+<input id="input" placeholder="Press enter on this field">
 
-<img id="output" />
-
-<input type="file" onchange="previewFile()"><br>
-
+<input type="file" onchange="previewFile()">
+Image must be <=32KB.
+<br>
 <!-- Output Chat Box -->
 <div id="box"></div>
 
 <script src=http://cdn.pubnub.com/pubnub.min.js></script>
 <script src=sound.js></script>
-<script>
 
-</script>
+
 <script>(function(){
     var  pubnub = PUBNUB.init({
         publish_key: 'pub-c-14d07f8d-6772-484d-aa1c-b11343671a8b',
