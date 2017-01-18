@@ -1,6 +1,6 @@
 **PictureHere**
 
-Location-based image sharing. Powered by PubHub.
+Location-based image sharing. Powered by PubNub.
 
 **Usage**
 
