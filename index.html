@@ -1,0 +1,279 @@
+<!-- Hey, let's be friends! http://twitter.com/pubnub -->
+
+<style>
+    #map {
+        display: inline-block;
+        margin: 10px;
+        width: 600px;
+        height: 80px;
+        background: #eee;
+    }
+    #status {
+        background: #b9d1e4;
+        border-radius: 6px;
+        padding: 20px;
+        margin: 10px;
+        color: #fff;
+        font-size: 29px;
+        font-family: "Helvetica Neue";
+        font-weight: 100;
+    }
+
+    #input {
+        padding: 10px 5px 5px 5px;
+        margin: 10px;
+        border: 0;
+        border-bottom: 1px solid #333;
+        outline: none;
+        font-size: 20px;
+        font-family: "Helvetica Neue";
+    }
+
+    #box {
+        margin: 10px;
+        font-size: 20px;
+        font-family: "Helvetica Neue";
+        font-weight: 100;
+    }
+
+    .spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        margin: 1px 10px 1px 1px;
+        position: relative;
+
+        border: 2px solid rgb(255,255,255);
+        border-top-color: transparent;
+        border-radius: 100%;
+
+        -webkit-animation: spin 1s infinite linear;
+        -moz-animation: spin 1s infinite linear;
+        -ms-animation: spin 1s infinite linear;
+        -o-animation: spin 1s infinite linear;
+        animation: spin 1s infinite linear;
+    }
+
+    @-webkit-keyframes spin { to { -webkit-transform: rotate(360deg); } }
+    @-moz-keyframes spin { to { -moz-transform: rotate(360deg); } }
+    @-ms-keyframes spin { to { -ms-transform: rotate(360deg); } }
+    @-o-keyframes spin { to { -o-transform: rotate(360deg); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<!-- Status -->
+<div id="status">
+    <span class="spinner"></span>
+    <span id="status-message">Acquiring Your Location...</span>
+</div>
+
+<!-- Map -->
+<div><img id="map" src="http://maps.googleapis.com/maps/api/staticmap?center=San+Francisco,CA&zoom=13&size=600x80&maptype=roadmap&sensor=false"></div>
+
+<!-- Input Chat Box -->
+<input id="input" placeholder="Chat here">
+
+<input type="file" onchange="previewFile()"><br>
+
+<!-- Output Chat Box -->
+<div id="box"></div>
+
+<script src=http://cdn.pubnub.com/pubnub.min.js></script>
+<script src=sound.js></script>
+<script>
+
+</script>
+<script>(function(){
+    var  pubnub = PUBNUB.init({
+        publish_key: 'pub-c-14d07f8d-6772-484d-aa1c-b11343671a8b',
+        subscribe_key: 'sub-c-2df278fa-d856-11e6-984c-02ee2ddab7fe'
+    })
+
+
+        ,       box = pubnub.$('box')
+        ,     input = pubnub.$('input')
+        ,       map = pubnub.$('map')
+        , statusmsg = pubnub.$('status-message')
+        ,    status = pubnub.$('status')
+        ,    coords = { latitude : 0.0, longitude : 0.0 }
+        ,   channel = 'my_channel';
+
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    // Get Location
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    location(function(pos){
+        channel = geohash(pos.latitude) + '' + geohash(pos.longitude);
+        statusmsg.innerHTML = pubnub.supplant(
+            'Connecting to "{channel}"',
+            { channel : channel }
+        );
+
+        // Map
+        map.src = pubnub.supplant(
+            'http://maps.googleapis.com/maps/api/staticmap?' +
+            'center={latitude},{longitude}&zoom=13&size=600x80' +
+            '&markers=color:red%7Clabel:d%7C{latitude},{longitude}' +
+            '&maptype=roadmap&sensor=false',
+            pos
+        );
+
+        coords.latitude  = pos.latitude;
+        coords.longitude = pos.longitude;
+
+        // Connect to Proximity Channel
+        pubnub.subscribe({
+             channel : channel,
+             message : receive,
+             connect : ready,
+            presence : presence
+        });
+    });
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    // Connection Ready
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    function ready(data) {
+        status.innerHTML = pubnub.supplant(
+            'You are chatting with people near: <strong>{channel}</strong>.',
+            { channel : channel }
+        );
+
+        input.focus();
+
+        // History
+        pubnub.history({
+               limit : 100,
+             channel : channel,
+            callback : function(msgs) {
+                pubnub.each( msgs[0], printout );
+            }
+        });
+    }
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    // Presence
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    function presence(data) {
+        printout(pubnub.supplant( 'A user {action} occured.', data ));
+    }
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    // Receive Data
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    function receive(data) {
+        printout(data);
+    }
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    // Geo Hash
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    function geohash( coord, resolution ) {
+        var rez = Math.pow( 10, resolution || 0 );
+        return Math.floor(coord * rez) / rez;
+    }
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    // Update UI Output
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    function printout(text) {
+        // Play sound here
+        sounds.play('chat');
+
+        // Update text output here
+        box.innerHTML = safe_text(text) + '<br>' + box.innerHTML;
+    }
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    // Send UI
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    pubnub.bind( 'keyup', input, function(e) {
+       if ((e.keyCode || e.charCode) !== 13) return;
+       send(input.value);
+
+       var preview = document.querySelector('img'); //selects the query named img
+       var file    = document.querySelector('input[type=file]').files[0]; //sames as here
+       var reader  = new FileReader();
+
+       reader.onloadend = function () {
+           preview.src = reader.result;
+       }
+
+       if (file) {
+           reader.readAsDataURL(file); //reads the data as a URL
+       } else {
+           preview.src = "";
+       }
+
+       compressImage(reader.readAsDataURL(file));
+
+       input.value = '';
+
+    });
+
+    function compressImage(dataURL, size) {
+        var compression = 1.0;
+        while(compression > 0.01) {
+            var dataURL = canvas.toDataURL('image/jpeg', compression);
+            if (dataURL.length/1012 < size) return dataURL;
+            if (compression <= 0.1) {
+                compression -= 0.01;
+            } else {
+                compression -= 0.1;
+            }
+        }
+        return null;
+    }
+
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    // Send Message
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    function send(text) {
+        pubnub.publish({ channel : channel, message : text });
+    }
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    // Safe Text
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    function safe_text(text) {
+        return (''+text).replace( /[<>]/g, '' );
+    }
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    // Geo Location
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    function location(callback) {
+        function success(pos) { callback(pos.coords) }
+        function error(err) {
+            callback({ latitude : 0.0, longitude : 0.0 });
+        };
+
+        // Get Lat/Long
+        navigator.geolocation.getCurrentPosition( success, error, {
+            enableHighAccuracy : true,
+                       timeout : 5000,
+                    maximumAge : 0
+        } );
+    }
+
+
+    function previewFile(){
+        var file    = document.querySelector('input[type=file]').files[0]; //sames as here
+        var reader  = new FileReader();
+
+
+        if (file) {
+            var dataURL = reader.readAsDataURL(file); //reads the data as a URL
+            console.log(dataURL);
+            pubnub.publish({
+                channel: channel,
+                message: dataURL,
+                error: function(error){console.log(error)}
+            });
+        } else {
+            preview.src = "";
+        }
+    }
+
+})();</script>
