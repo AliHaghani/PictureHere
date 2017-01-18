@@ -73,6 +73,8 @@
 <!-- Input Chat Box -->
 <input id="input" placeholder="Chat here">
 
+<img id="output" />
+
 <input type="file" onchange="previewFile()"><br>
 
 <!-- Output Chat Box -->
@@ -162,7 +164,9 @@
     // Receive Data
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     function receive(data) {
-        printout(data);
+        // printout(data);
+        var image = document.getElementById("output");
+        image.src = data;
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -189,41 +193,29 @@
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     pubnub.bind( 'keyup', input, function(e) {
        if ((e.keyCode || e.charCode) !== 13) return;
-       send(input.value);
+       // send(input.value);
 
-       var preview = document.querySelector('img'); //selects the query named img
        var file    = document.querySelector('input[type=file]').files[0]; //sames as here
        var reader  = new FileReader();
 
-       reader.onloadend = function () {
-           preview.src = reader.result;
+       reader.onloadend = function() {
+           var dataURL = reader.result;
+           send(dataURL);
+           console.log(dataURL);
        }
 
        if (file) {
            reader.readAsDataURL(file); //reads the data as a URL
-       } else {
-           preview.src = "";
        }
 
-       compressImage(reader.readAsDataURL(file));
+//       pubnub.publish({
+//           channel : channel,
+//           message : dataURL,
+//           error   : function(error){console.log(error)}
+//       });
 
        input.value = '';
-
     });
-
-    function compressImage(dataURL, size) {
-        var compression = 1.0;
-        while(compression > 0.01) {
-            var dataURL = canvas.toDataURL('image/jpeg', compression);
-            if (dataURL.length/1012 < size) return dataURL;
-            if (compression <= 0.1) {
-                compression -= 0.01;
-            } else {
-                compression -= 0.1;
-            }
-        }
-        return null;
-    }
 
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
