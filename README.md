@@ -4,7 +4,7 @@ Location-based image sharing. Powered by PubNub.
 
 **Usage**
 
-1. Clone the repo.
+1. Clone the repo (cannot be used with GitHub Pages online due to lack of HTTPS).
 
 2. Open index.html.
 
